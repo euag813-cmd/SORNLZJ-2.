@@ -2,35 +2,37 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Intranet • 실적 관리 콘솔</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
-html { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif; }
-.spin { animation: spin 1s cubic-bezier(.25,.8,.25,1) 1; }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  html { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif; }
+  .spin { animation: spin 1s cubic-bezier(.25,.8,.25,1) 1; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>
 </head>
 <body class="min-h-screen bg-slate-100">
+
 <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
-<div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-  <div class="flex items-center gap-3">
-    <div class="w-9 h-9 rounded-2xl bg-slate-900 text-white grid place-items-center text-sm font-semibold">HR</div>
-    <div>
-      <h1 class="text-xl font-semibold text-slate-900">사내 인트라넷 • 실적 관리 콘솔</h1>
-      <p class="text-xs text-slate-500">Confidential — 내부 배포 전용</p>
+  <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-2xl bg-slate-900 text-white grid place-items-center text-sm font-semibold">HR</div>
+      <div>
+        <h1 class="text-xl font-semibold text-slate-900">사내 인트라넷 • 실적 관리 콘솔</h1>
+        <p class="text-xs text-slate-500">Confidential — 내부 배포 전용</p>
+      </div>
+    </div>
+    <div class="text-right">
+      <div id="headerUser" class="text-sm text-slate-600">미로그인</div>
+      <button id="logoutBtn" class="hidden mt-1 text-xs text-slate-500 underline">로그아웃</button>
     </div>
   </div>
-  <div class="text-right">
-    <div id="headerUser" class="text-sm text-slate-600">미로그인</div>
-    <button id="logoutBtn" class="hidden mt-1 text-xs text-slate-500 underline">로그아웃</button>
-  </div>
-</div>
 </header>
 
 <main class="max-w-6xl mx-auto px-4 py-8">
+
 <section id="loginSection" class="grid place-items-center">
   <div class="w-full max-w-md bg-white rounded-2xl shadow p-6 border border-slate-200">
     <h2 class="text-lg font-semibold text-slate-900">사원 인증</h2>
@@ -46,209 +48,276 @@ html { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
       </label>
       <button id="loginBtn" class="w-full mt-2 py-2 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800">접속</button>
     </div>
-    <p class="text-xs text-slate-400 mt-4">최초 접속 시 자동 등록되며, 데이터는 실시간 DB에 저장됩니다.</p>
+    <p class="text-xs text-slate-400 mt-4">최초 접속 시 자동 등록되며, 데이터는 Firebase Realtime Database에 저장됩니다.</p>
   </div>
 </section>
 
 <section id="dashboard" class="hidden">
-<div class="grid md:grid-cols-3 gap-5">
-  <div class="md:col-span-2 space-y-5">
-    <!-- 개인 실적 -->
-    <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
-      <div class="flex items-center justify-between">
-        <div>
-          <h3 class="text-base font-semibold text-slate-900">개인 실적 현황</h3>
-          <p class="text-sm text-slate-500">이번 분기 누적 포인트</p>
+  <div class="grid md:grid-cols-3 gap-5">
+    <div class="md:col-span-2 space-y-5">
+      <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-base font-semibold text-slate-900">개인 실적 현황</h3>
+            <p class="text-sm text-slate-500">이번 분기 누적 포인트</p>
+          </div>
+          <div class="text-right">
+            <div class="text-3xl font-extrabold text-slate-900" id="points">0</div>
+            <div class="text-xs text-slate-500">pt</div>
+          </div>
         </div>
-        <div class="text-right">
-          <div class="text-3xl font-extrabold text-slate-900" id="points">0</div>
-          <div class="text-xs text-slate-500">pt</div>
+        <div class="mt-4 grid sm:grid-cols-2 gap-3">
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="text-xs text-slate-500">성공 프로젝트</div>
+            <div id="wins" class="text-lg font-semibold">0</div>
+          </div>
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="text-xs text-slate-500">리스크 감수</div>
+            <div id="bets" class="text-lg font-semibold">0</div>
+          </div>
         </div>
       </div>
-      <div class="mt-4 grid sm:grid-cols-2 gap-3">
-        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
-          <div class="text-xs text-slate-500">성공 프로젝트</div>
-          <div id="wins" class="text-lg font-semibold">0</div>
+
+      <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-semibold text-slate-900">업무 보고</h3>
+            <p class="text-sm text-slate-500">표면상 보고 절차지만 내부적으로 확률 배정된 결과가 산출됩니다.</p>
+          </div>
+          <div id="reportCooldown" class="text-xs text-slate-500"></div>
         </div>
-        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
-          <div class="text-xs text-slate-500">리스크 감수</div>
-          <div id="bets" class="text-lg font-semibold">0</div>
+
+        <div class="grid sm:grid-cols-[1fr_auto] gap-4 items-center">
+          <button id="reportBtn" class="py-3 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800">보고서 제출</button>
+          <div class="w-24 h-24 grid place-items-center rounded-full border border-slate-300" id="wheelBox">
+            <div id="wheel" class="w-16 h-16 rounded-full border-4 border-slate-900 grid place-items-center text-sm font-bold">HR</div>
+          </div>
         </div>
+
+        <div class="mt-4">
+          <details class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
+            <summary class="cursor-pointer text-sm text-slate-700">확률표 보기</summary>
+            <div class="mt-2 text-sm text-slate-600">
+              <ul class="list-disc pl-5 space-y-1">
+                <li>프로젝트 대성공 +150pt (5%)</li>
+                <li>상사 칭찬 +80pt (10%)</li>
+                <li>성과 인정 +50pt (15%)</li>
+                <li>무난한 보고 0pt (20%)</li>
+                <li>보고 누락 -30pt (20%)</li>
+                <li>정치 전개 실패 -60pt (20%)</li>
+                <li>성과 갈취 -100pt (10%)</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+
+        <div id="reportResult" class="mt-4 text-sm"></div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
+        <h3 class="text-base font-semibold text-slate-900">프로젝트 투자</h3>
+        <p class="text-sm text-slate-500 mb-3">보유 포인트에서 일부를 배정해 결과에 따라 수익 또는 손실을 기록합니다.</p>
+
+        <div class="grid sm:grid-cols-3 gap-3">
+          <label class="block">
+            <span class="text-xs text-slate-600">배팅 포인트</span>
+            <input id="betInput" type="number" min="1" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30" placeholder="예: 20" />
+          </label>
+          <label class="block">
+            <span class="text-xs text-slate-600">리스크 등급</span>
+            <select id="riskSelect" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30">
+              <option value="conservative">보수형 (성공 60%, 1.5배)</option>
+              <option value="balanced">중립형 (성공 50%, 2배)</option>
+              <option value="aggressive">공격형 (성공 35%, 3배)</option>
+            </select>
+          </label>
+          <button id="betBtn" class="py-3 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800 mt-5">투자 실행</button>
+        </div>
+
+        <div id="betResult" class="mt-4 text-sm text-slate-700"></div>
       </div>
     </div>
 
-    <!-- 업무/투자/이벤트 -->
-    <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
-      <div class="grid sm:grid-cols-3 gap-3">
-        <button id="reportBtn" class="py-2 px-3 rounded-xl bg-green-500 text-white font-medium hover:bg-green-600">업무 보고</button>
-        <button id="investBtn" class="py-2 px-3 rounded-xl bg-yellow-500 text-white font-medium hover:bg-yellow-600">리스크 투자</button>
-        <button id="eventBtn" class="py-2 px-3 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600">랜덤 이벤트</button>
+    <div class="space-y-5">
+      <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
+        <h3 class="text-base font-semibold text-slate-900">이벤트 현황</h3>
+        <p class="text-sm text-slate-500">회사 이벤트 참여, 랜덤 보상 등 실시간 업데이트</p>
+        <div id="eventLog" class="mt-4 text-sm text-slate-700 space-y-1"></div>
       </div>
-      <div id="actionResult" class="mt-4 text-sm"></div>
-    </div>
 
-    <!-- 로그 -->
-    <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
-      <h3 class="text-base font-semibold text-slate-900">활동 로그</h3>
-      <ul id="logList" class="mt-3 space-y-2 text-sm text-slate-700 max-h-64 overflow-auto"></ul>
+      <div id="adminPanel" class="hidden bg-white rounded-2xl shadow p-6 border border-slate-200">
+        <h3 class="text-base font-semibold text-slate-900">관리자 패널</h3>
+        <p class="text-sm text-slate-500">관리자는 실시간으로 모든 직원 포인트를 수정할 수 있습니다.</p>
+
+        <div class="mt-3 space-y-2">
+          <input id="adminUserId" type="text" placeholder="사원번호 입력" class="w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30 px-3 py-1" />
+          <input id="adminPoints" type="number" placeholder="포인트 변경" class="w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30 px-3 py-1" />
+          <button id="adminUpdateBtn" class="w-full py-2 rounded-xl bg-red-600 text-white font-medium hover:bg-red-500">적용</button>
+        </div>
+      </div>
     </div>
   </div>
-
-  <aside class="space-y-5">
-    <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
-      <h3 class="text-base font-semibold text-slate-900">이번 달 실적 랭킹</h3>
-      <ol id="leaderboard" class="mt-3 space-y-2 text-sm"></ol>
-    </div>
-    <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
-      <h3 class="text-base font-semibold text-slate-900">사내 공지</h3>
-      <ul class="mt-3 text-sm text-slate-700 space-y-2">
-        <li>• 데이터는 실시간으로 공유됩니다.</li>
-        <li>• 관리자 패널로 점수/로그를 조정할 수 있습니다.</li>
-      </ul>
-    </div>
-    <div id="adminPanel" class="bg-white rounded-2xl shadow p-6 border border-slate-200 hidden">
-      <h3 class="text-base font-semibold text-slate-900">관리자 패널</h3>
-      <button id="resetScoresBtn" class="mt-2 py-1 px-2 bg-red-500 text-white rounded hover:bg-red-600">모든 점수 초기화</button>
-    </div>
-  </aside>
-</div>
 </section>
+
 </main>
 
-<footer class="max-w-6xl mx-auto px-4 pb-10 text-center text-xs text-slate-500">
-© Intranet Simulation for RP — For friends only
-</footer>
-
 <script>
-// ===== Firebase 초기화 =====
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_DOMAIN.firebaseapp.com",
-  databaseURL: "https://YOUR_DOMAIN.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_DOMAIN.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+  // Firebase 초기화
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_DOMAIN",
+    databaseURL: "YOUR_DB_URL",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_BUCKET",
+    messagingSenderId: "YOUR_SENDER",
+    appId: "YOUR_APP_ID"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-// ===== 상태 =====
-let current = null;
+  // 전역 변수
+  let current = null;
+  const loginSection = document.getElementById('loginSection');
+  const dashboard = document.getElementById('dashboard');
+  const headerUser = document.getElementById('headerUser');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const reportBtn = document.getElementById('reportBtn');
+  const reportResult = document.getElementById('reportResult');
+  const pointsDisplay = document.getElementById('points');
+  const winsDisplay = document.getElementById('wins');
+  const betsDisplay = document.getElementById('bets');
+  const reportCooldown = document.getElementById('reportCooldown');
+  const wheel = document.getElementById('wheel');
+  const betBtn = document.getElementById('betBtn');
+  const betInput = document.getElementById('betInput');
+  const riskSelect = document.getElementById('riskSelect');
+  const betResult = document.getElementById('betResult');
+  const eventLog = document.getElementById('eventLog');
+  const adminPanel = document.getElementById('adminPanel');
+  const adminUserId = document.getElementById('adminUserId');
+  const adminPoints = document.getElementById('adminPoints');
+  const adminUpdateBtn = document.getElementById('adminUpdateBtn');
 
-// ===== 유틸 =====
-const fmt = n => new Intl.NumberFormat('ko-KR').format(n);
-const now = () => Date.now();
+  // 로그인
+  document.getElementById('loginBtn').onclick = async () => {
+    const name = document.getElementById('nameInput').value.trim();
+    const uid = document.getElementById('idInput').value.trim();
+    if(!name || !uid){ alert('사원명과 사원번호를 입력하세요'); return; }
 
-// ===== UI 요소 =====
-const loginSection = document.getElementById('loginSection');
-const dashboard = document.getElementById('dashboard');
-const headerUser = document.getElementById('headerUser');
-const logoutBtn = document.getElementById('logoutBtn');
+    const snapshot = await db.ref(`users/${uid}`).get();
+    if(snapshot.exists()){
+      current = snapshot.val();
+    } else {
+      current = { name, uid, points:0, wins:0, bets:0, lastReportAt:0, role:'user' };
+      await db.ref(`users/${uid}`).set(current);
+    }
+    headerUser.textContent = current.name;
+    loginSection.classList.add('hidden');
+    dashboard.classList.remove('hidden');
+    if(current.role==='admin') adminPanel.classList.remove('hidden');
+    renderDashboard();
+    subscribeRealtime();
+  }
 
-const nameInput = document.getElementById('nameInput');
-const idInput = document.getElementById('idInput');
-const loginBtn = document.getElementById('loginBtn');
+  logoutBtn.onclick = () => {
+    current = null;
+    loginSection.classList.remove('hidden');
+    dashboard.classList.add('hidden');
+    headerUser.textContent = "미로그인";
+  }
 
-const pointsEl = document.getElementById('points');
-const winsEl = document.getElementById('wins');
-const betsEl = document.getElementById('bets');
-const logList = document.getElementById('logList');
-const leaderboard = document.getElementById('leaderboard');
-const actionResult = document.getElementById('actionResult');
-const adminPanel = document.getElementById('adminPanel');
-const resetScoresBtn = document.getElementById('resetScoresBtn');
+  // 대시보드 렌더
+  function renderDashboard(){
+    pointsDisplay.textContent = current.points;
+    winsDisplay.textContent = current.wins;
+    betsDisplay.textContent = current.bets;
+  }
 
-const reportBtn = document.getElementById('reportBtn');
-const investBtn = document.getElementById('investBtn');
-const eventBtn = document.getElementById('eventBtn');
+  // 업무보고
+  reportBtn.onclick = async () => {
+    const now = Date.now();
+    if(current.lastReportAt && now - current.lastReportAt < 1000*60*60){
+      alert("쿨다운 중입니다 (1시간)."); return;
+    }
 
-// ===== 로그인 =====
-loginBtn.onclick = () => {
-  const name = nameInput.value.trim();
-  const id = idInput.value.trim();
-  if(!name || !id) return alert('이름과 사원번호를 입력해주세요.');
-  current = { name, id, points:0, wins:0, bets:0 };
-  headerUser.textContent = `${name} (${id})`;
-  loginSection.classList.add('hidden');
-  dashboard.classList.remove('hidden');
-  logoutBtn.classList.remove('hidden');
-  if(id === 'ADMIN') adminPanel.classList.remove('hidden');
-  db.ref('users/'+id).set(current);
-  attachRealtime();
-};
+    const outcomes = [
+      {text:"프로젝트 대성공", pts:150},
+      {text:"상사 칭찬", pts:80},
+      {text:"성과 인정", pts:50},
+      {text:"무난한 보고", pts:0},
+      {text:"보고 누락", pts:-30},
+      {text:"정치 전개 실패", pts:-60},
+      {text:"성과 갈취", pts:-100}
+    ];
+    const rnd = Math.random();
+    let acc=0, choice=null;
+    for(const o of outcomes){
+      acc += 0.15; // 단순 15%씩 분포
+      if(rnd<acc){ choice=o; break; }
+    }
+    if(!choice) choice = outcomes[outcomes.length-1];
 
-// ===== 로그아웃 =====
-logoutBtn.onclick = () => location.reload();
+    // 회전 애니메이션
+    wheel.classList.add('spin');
+    setTimeout(()=>wheel.classList.remove('spin'),1000);
 
-// ===== 실시간 반영 =====
-function attachRealtime(){
-  db.ref('users').on('value', snapshot=>{
-    const users = snapshot.val() || {};
-    // 개인 실적
-    const me = users[current.id] || {};
-    pointsEl.textContent = fmt(me.points||0);
-    winsEl.textContent = fmt(me.wins||0);
-    betsEl.textContent = fmt(me.bets||0);
+    current.points += choice.pts;
+    current.lastReportAt = now;
+    if(choice.pts>0) current.wins++; else current.bets++;
+    await db.ref(`users/${current.uid}`).set(current);
+    reportResult.textContent = `${choice.text} → ${choice.pts>0?'+':''}${choice.pts}pt`;
+    renderDashboard();
+  }
 
-    // 로그
-    const logs = Object.values(users).flatMap(u=>u.logs||[]);
-    logList.innerHTML = '';
-    logs.sort((a,b)=>b.time-a.time).forEach(l=>{
-      const li = document.createElement('li');
-      li.textContent = `[${new Date(l.time).toLocaleTimeString()}] ${l.text}`;
-      logList.appendChild(li);
+  // 투자
+  betBtn.onclick = async () => {
+    const amt = parseInt(betInput.value);
+    if(isNaN(amt)||amt<=0){ alert("유효한 포인트를 입력하세요"); return; }
+    if(amt>current.points){ alert("포인트 부족"); return; }
+
+    let risk = riskSelect.value;
+    let success=false, multiplier=1.5;
+    if(risk==='balanced'){ multiplier=2; success=Math.random()<0.5; }
+    else if(risk==='aggressive'){ multiplier=3; success=Math.random()<0.35; }
+    else { success=Math.random()<0.6; }
+
+    let gain = success ? Math.floor(amt*multiplier) : -amt;
+    current.points += gain;
+    current.bets++;
+    await db.ref(`users/${current.uid}`).set(current);
+    betResult.textContent = `${success?'성공':'실패'}! ${gain>0?'+':''}${gain}pt`;
+    renderDashboard();
+  }
+
+  // 관리자
+  adminUpdateBtn.onclick = async () => {
+    const uid = adminUserId.value.trim();
+    const pts = parseInt(adminPoints.value);
+    if(!uid||isNaN(pts)){ alert("입력 오류"); return; }
+    const snapshot = await db.ref(`users/${uid}`).get();
+    if(!snapshot.exists()){ alert("사원 없음"); return; }
+    const data = snapshot.val();
+    data.points = pts;
+    await db.ref(`users/${uid}`).set(data);
+  }
+
+  // 실시간 구독
+  function subscribeRealtime(){
+    db.ref('events').on('child_added', snapshot=>{
+      const e = snapshot.val();
+      const div = document.createElement('div');
+      div.textContent = `[${new Date(e.ts).toLocaleTimeString()}] ${e.msg}`;
+      eventLog.prepend(div);
+      if(eventLog.childElementCount>50) eventLog.removeChild(eventLog.lastChild);
     });
-
-    // 랭킹
-    const ranked = Object.values(users).sort((a,b)=>b.points-(a.points||0));
-    leaderboard.innerHTML = '';
-    ranked.slice(0,10).forEach(u=>{
-      const li = document.createElement('li');
-      li.textContent = `${u.name} - ${u.points||0}pt`;
-      leaderboard.appendChild(li);
+    db.ref('users').on('child_changed', snapshot=>{
+      if(snapshot.key===current.uid){
+        current = snapshot.val();
+        renderDashboard();
+      }
     });
-  });
-}
+  }
 
-// ===== 액션 =====
-function addLog(text){
-  db.ref('users/'+current.id+'/logs').push({text,time:now()});
-}
-
-reportBtn.onclick = ()=>{
-  current.points += 10;
-  current.wins += 1;
-  db.ref('users/'+current.id).update({points:current.points,wins:current.wins});
-  addLog('업무 보고 완료 +10pt');
-  actionResult.textContent='업무 보고 완료! +10pt';
-};
-investBtn.onclick = ()=>{
-  const gain = Math.floor(Math.random()*20-5);
-  current.points += gain;
-  current.bets += 1;
-  db.ref('users/'+current.id).update({points:current.points,bets:current.bets});
-  addLog(`리스크 투자 ${gain>=0?'+':'-'}${Math.abs(gain)}pt`);
-  actionResult.textContent=`리스크 투자 결과: ${gain>=0?'+':'-'}${Math.abs(gain)}pt`;
-};
-eventBtn.onclick = ()=>{
-  const gain = Math.floor(Math.random()*50-25);
-  current.points += gain;
-  db.ref('users/'+current.id).update({points:current.points});
-  addLog(`랜덤 이벤트 ${gain>=0?'+':'-'}${Math.abs(gain)}pt`);
-  actionResult.textContent=`랜덤 이벤트 결과: ${gain>=0?'+':'-'}${Math.abs(gain)}pt`;
-};
-
-// ===== 관리자 =====
-resetScoresBtn.onclick = ()=>{
-  if(!confirm('모든 점수를 초기화하시겠습니까?')) return;
-  db.ref('users').once('value').then(snapshot=>{
-    const users = snapshot.val()||{};
-    Object.keys(users).forEach(uid=>{
-      db.ref('users/'+uid).update({points:0,wins:0,bets:0,logs:[]});
-    });
-  });
-};
 </script>
 </body>
 </html>
