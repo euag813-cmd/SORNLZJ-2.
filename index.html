@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Intranet • 실적 관리 콘솔 (실시간)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+    import {
+      getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion
+    } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "sornlzj-2.firebaseapp.com",
+      projectId: "sornlzj-2",
+      storageBucket: "sornlzj-2.appspot.com",
+      messagingSenderId: "YOUR_MSG_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.fb = { db, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion };
+  </script>
+  <style>
+    html { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif; }
+    .spin { animation: spin 1s cubic-bezier(.25,.8,.25,1) 1; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-100">
+  <!-- 헤더, 로그인, 대시보드 구조는 기존 코드와 동일 -->
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-2xl bg-slate-900 text-white grid place-items-center text-sm font-semibold">HR</div>
+        <div>
+          <h1 class="text-xl font-semibold text-slate-900">사내 인트라넷 • 실적 관리 콘솔</h1>
+          <p class="text-xs text-slate-500">Confidential — 내부 배포 전용</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <div id="headerUser" class="text-sm text-slate-600">미로그인</div>
+        <button id="logoutBtn" class="hidden mt-1 text-xs text-slate-500 underline">로그아웃</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-8">
+    <section id="loginSection" class="grid place-items-center">
+      <div class="w-full max-w-md bg-white rounded-2xl shadow p-6 border border-slate-200">
+        <h2 class="text-lg font-semibold text-slate-900">사원 인증</h2>
+        <p class="text-sm text-slate-500 mt-1">사원번호는 닉네임 대체로 사용 가능합니다.</p>
+        <div class="mt-4 space-y-3">
+          <label class="block">
+            <span class="text-sm text-slate-600">사원명</span>
+            <input id="nameInput" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30" placeholder="예: 김사원" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-slate-600">사원번호</span>
+            <input id="idInput" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30" placeholder="예: E-1024" />
+          </label>
+          <button id="loginBtn" class="w-full mt-2 py-2 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800">접속</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <!-- 대시보드 UI 그대로 유지 -->
+      <!-- ... 기존 HTML 유지 ... -->
+      <div id="points">0</div>
+      <div id="wins">0</div>
+      <div id="bets">0</div>
+      <ul id="logList"></ul>
+      <ol id="leaderboard"></ol>
+      <button id="reportBtn">보고서 제출</button>
+      <button id="betBtn">투자 집행</button>
+      <button id="eventBtn">알림 확인</button>
+      <div id="reportResult"></div>
+      <div id="betResult"></div>
+      <div id="eventResult"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    const { db, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion } = window.fb;
+
+    let currentUser = null;
+    const nameInput = document.getElementById('nameInput');
+    const idInput = document.getElementById('idInput');
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const loginSection = document.getElementById('loginSection');
+    const dashboard = document.getElementById('dashboard');
+    const headerUser = document.getElementById('headerUser');
+    const pointsEl = document.getElementById('points');
+    const winsEl = document.getElementById('wins');
+    const betsEl = document.getElementById('bets');
+    const logList = document.getElementById('logList');
+
+    async function ensureUser(id, name){
+      const userRef = doc(db, 'users', id);
+      const snap = await getDoc(userRef);
+      if(!snap.exists()){
+        await setDoc(userRef, { name, points:100, wins:0, bets:0, logs:[], lastReportAt:0, lastEventAt:0 });
+      }
+      // 실시간 구독
+      onSnapshot(userRef, (docSnap)=>{
+        currentUser = docSnap.data();
+        currentUser.id = docSnap.id;
+        render();
+      });
+      loginSection.classList.add('hidden');
+      dashboard.classList.remove('hidden');
+      headerUser.textContent = `${name} · ${id}`;
+      logoutBtn.classList.remove('hidden');
+    }
+
+    loginBtn.addEventListener('click', async ()=>{
+      const name = (nameInput.value||'').trim();
+      const id = (idInput.value||'').trim();
+      if(!name || !id) return alert('사원명과 사원번호를 모두 입력하세요.');
+      ensureUser(id, name);
+    });
+
+    logoutBtn.addEventListener('click', ()=>{
+      currentUser = null;
+      dashboard.classList.add('hidden');
+      loginSection.classList.remove('hidden');
+      headerUser.textContent = '미로그인';
+      logoutBtn.classList.add('hidden');
+    });
+
+    function render(){
+      if(!currentUser) return;
+      pointsEl.textContent = currentUser.points;
+      winsEl.textContent = currentUser.wins;
+      betsEl.textContent = currentUser.bets;
+      logList.innerHTML = '';
+      (currentUser.logs||[]).slice(-50).reverse().forEach(l=>{
+        const li = document.createElement('li');
+        li.textContent = `[${new Date(l.t).toLocaleString()}] ${l.msg}`;
+        logList.appendChild(li);
+      });
+    }
+
+    // 보고, 배팅, 이벤트 버튼 로직 (Firestore 업데이트)
+    // 기존 weightedPick, HR_EVENTS 로직 그대로 사용 가능
+    const REPORT_TABLE = [
+      { label: '프로젝트 대성공', delta: +150, weight: 5 },
+      { label: '상사 칭찬',       delta: +80,  weight: 10 },
+      { label: '성과 인정',       delta: +50,  weight: 15 },
+      { label: '무난한 보고',     delta: 0,    weight: 20 },
+      { label: '보고 누락',       delta: -30,  weight: 20 },
+      { label: '정치 전개 실패',   delta: -60,  weight: 20 },
+      { label: '성과 갈취',       delta: -100, weight: 10 },
+    ];
+    const HR_EVENTS = [
+      { msg: '사장 특별 인센티브', delta: +120 },
+      { msg: '업무 프로세스 개선 기여', delta: +70 },
+      { msg: '회식비 더치페이 주도', delta: -40 },
+      { msg: '거래처 잠수', delta: -90 },
+      { msg: '내부 감사 칭찬 메일 공유', delta: +50 },
+      { msg: '에스컬레이션 누락', delta: -60 },
+      { msg: '부서 협업 시너지', delta: +80 },
+      { msg: '상사의 기분 난조', delta: -50 },
+    ];
+
+    function weightedPick(table){
+      const total = table.reduce((s,r)=>s+r.weight,0);
+      let r = Math.random()*total;
+      for(const row of table){ if((r-=row.weight)<=0) return row; }
+      return table[table.length-1];
+    }
+
+    const reportBtn = document.getElementById('reportBtn');
+    const reportResult = document.getElementById('reportResult');
+    reportBtn.addEventListener('click', async ()=>{
+      const outcome = weightedPick(REPORT_TABLE);
+      const userRef = doc(db,'users',currentUser.id);
+      await updateDoc(userRef,{
+        points: currentUser.points + outcome.delta,
+        wins: currentUser.wins + (outcome.delta>0?1:0),
+        lastReportAt: Date.now(),
+        logs: arrayUnion({t:Date.now(), msg:`[업무 보고] ${outcome.label} (${outcome.delta>=0?'+':''}${outcome.delta}pt)`})
+      });
+      reportResult.textContent = `${outcome.label} — ${outcome.delta>=0?'+':''}${outcome.delta}pt`;
+    });
+
+    const eventBtn = document.getElementById('eventBtn');
+    const eventResult = document.getElementById('eventResult');
+    eventBtn.addEventListener('click', async ()=>{
+      const ev = HR_EVENTS[Math.floor(Math.random()*HR_EVENTS.length)];
+      const userRef = doc(db,'users',currentUser.id);
+      await updateDoc(userRef,{
+        points: currentUser.points + ev.delta,
+        lastEventAt: Date.now(),
+        logs: arrayUnion({t:Date.now(), msg:`[인사 알림] ${ev.msg} (${ev.delta>=0?'+':''}${ev.delta}pt)`})
+      });
+      eventResult.textContent = `[사내 공지] ${ev.msg} — ${ev.delta>=0?'+':''}${ev.delta}pt`;
+    });
+
+    // 배팅 로직도 비슷하게 updateDoc로 구현 가능
+  </script>
+</body>
+</html>
