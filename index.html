@@ -1,243 +1,254 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Intranet • 실적 관리 콘솔</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <style>
-    html { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif; }
-    .spin { animation: spin 1s cubic-bezier(.25,.8,.25,1) 1; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intranet • 실적 관리 콘솔</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
+<style>
+html { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif; }
+.spin { animation: spin 1s cubic-bezier(.25,.8,.25,1) 1; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
 </head>
 <body class="min-h-screen bg-slate-100">
-  <!-- 헤더 -->
-  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
-    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-2xl bg-slate-900 text-white grid place-items-center text-sm font-semibold">HR</div>
+<header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
+<div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+  <div class="flex items-center gap-3">
+    <div class="w-9 h-9 rounded-2xl bg-slate-900 text-white grid place-items-center text-sm font-semibold">HR</div>
+    <div>
+      <h1 class="text-xl font-semibold text-slate-900">사내 인트라넷 • 실적 관리 콘솔</h1>
+      <p class="text-xs text-slate-500">Confidential — 내부 배포 전용</p>
+    </div>
+  </div>
+  <div class="text-right">
+    <div id="headerUser" class="text-sm text-slate-600">미로그인</div>
+    <button id="logoutBtn" class="hidden mt-1 text-xs text-slate-500 underline">로그아웃</button>
+  </div>
+</div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-8">
+<section id="loginSection" class="grid place-items-center">
+  <div class="w-full max-w-md bg-white rounded-2xl shadow p-6 border border-slate-200">
+    <h2 class="text-lg font-semibold text-slate-900">사원 인증</h2>
+    <p class="text-sm text-slate-500 mt-1">사원번호는 닉네임 대체로 사용 가능합니다.</p>
+    <div class="mt-4 space-y-3">
+      <label class="block">
+        <span class="text-sm text-slate-600">사원명</span>
+        <input id="nameInput" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30" placeholder="예: 김사원" />
+      </label>
+      <label class="block">
+        <span class="text-sm text-slate-600">사원번호</span>
+        <input id="idInput" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30" placeholder="예: E-1024" />
+      </label>
+      <button id="loginBtn" class="w-full mt-2 py-2 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800">접속</button>
+    </div>
+    <p class="text-xs text-slate-400 mt-4">최초 접속 시 자동 등록되며, 데이터는 실시간 DB에 저장됩니다.</p>
+  </div>
+</section>
+
+<section id="dashboard" class="hidden">
+<div class="grid md:grid-cols-3 gap-5">
+  <div class="md:col-span-2 space-y-5">
+    <!-- 개인 실적 -->
+    <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
+      <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-xl font-semibold text-slate-900">사내 인트라넷 • 실적 관리 콘솔</h1>
-          <p class="text-xs text-slate-500">Confidential — 내부 배포 전용</p>
+          <h3 class="text-base font-semibold text-slate-900">개인 실적 현황</h3>
+          <p class="text-sm text-slate-500">이번 분기 누적 포인트</p>
+        </div>
+        <div class="text-right">
+          <div class="text-3xl font-extrabold text-slate-900" id="points">0</div>
+          <div class="text-xs text-slate-500">pt</div>
         </div>
       </div>
-      <div class="text-right">
-        <div id="headerUser" class="text-sm text-slate-600">미로그인</div>
-        <button id="logoutBtn" class="hidden mt-1 text-xs text-slate-500 underline">로그아웃</button>
+      <div class="mt-4 grid sm:grid-cols-2 gap-3">
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="text-xs text-slate-500">성공 프로젝트</div>
+          <div id="wins" class="text-lg font-semibold">0</div>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="text-xs text-slate-500">리스크 감수</div>
+          <div id="bets" class="text-lg font-semibold">0</div>
+        </div>
       </div>
     </div>
-  </header>
 
-  <!-- 로그인 카드 -->
-  <main class="max-w-6xl mx-auto px-4 py-8">
-    <section id="loginSection" class="grid place-items-center">
-      <div class="w-full max-w-md bg-white rounded-2xl shadow p-6 border border-slate-200">
-        <h2 class="text-lg font-semibold text-slate-900">사원 인증</h2>
-        <p class="text-sm text-slate-500 mt-1">사원번호는 닉네임 대체로 사용 가능합니다.</p>
-        <div class="mt-4 space-y-3">
-          <label class="block">
-            <span class="text-sm text-slate-600">사원명</span>
-            <input id="nameInput" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30" placeholder="예: 김사원" />
-          </label>
-          <label class="block">
-            <span class="text-sm text-slate-600">사원번호</span>
-            <input id="idInput" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30" placeholder="예: E-1024" />
-          </label>
-          <button id="loginBtn" class="w-full mt-2 py-2 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800">접속</button>
-        </div>
-        <p class="text-xs text-slate-400 mt-4">최초 접속 시 자동 등록되며, 데이터는 실시간 Firebase DB에 저장됩니다.</p>
+    <!-- 업무/투자/이벤트 -->
+    <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
+      <div class="grid sm:grid-cols-3 gap-3">
+        <button id="reportBtn" class="py-2 px-3 rounded-xl bg-green-500 text-white font-medium hover:bg-green-600">업무 보고</button>
+        <button id="investBtn" class="py-2 px-3 rounded-xl bg-yellow-500 text-white font-medium hover:bg-yellow-600">리스크 투자</button>
+        <button id="eventBtn" class="py-2 px-3 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600">랜덤 이벤트</button>
       </div>
-    </section>
+      <div id="actionResult" class="mt-4 text-sm"></div>
+    </div>
 
-    <!-- 대시보드 -->
-    <section id="dashboard" class="hidden">
-      <div class="grid md:grid-cols-3 gap-5">
-        <div class="md:col-span-2 space-y-5">
-          <!-- 상태 카드 -->
-          <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
-            <div class="flex items-center justify-between">
-              <div>
-                <h3 class="text-base font-semibold text-slate-900">개인 실적 현황</h3>
-                <p class="text-sm text-slate-500">이번 분기 누적 포인트</p>
-              </div>
-              <div class="text-right">
-                <div class="text-3xl font-extrabold text-slate-900" id="points">0</div>
-                <div class="text-xs text-slate-500">pt</div>
-              </div>
-            </div>
-            <div class="mt-4 grid sm:grid-cols-2 gap-3">
-              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                <div class="text-xs text-slate-500">성공 프로젝트</div>
-                <div id="wins" class="text-lg font-semibold">0</div>
-              </div>
-              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                <div class="text-xs text-slate-500">리스크 감수</div>
-                <div id="bets" class="text-lg font-semibold">0</div>
-              </div>
-            </div>
-          </div>
+    <!-- 로그 -->
+    <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
+      <h3 class="text-base font-semibold text-slate-900">활동 로그</h3>
+      <ul id="logList" class="mt-3 space-y-2 text-sm text-slate-700 max-h-64 overflow-auto"></ul>
+    </div>
+  </div>
 
-          <!-- 나머지 업무 보고, 투자, 이벤트, 로그 부분은 동일합니다 -->
+  <aside class="space-y-5">
+    <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
+      <h3 class="text-base font-semibold text-slate-900">이번 달 실적 랭킹</h3>
+      <ol id="leaderboard" class="mt-3 space-y-2 text-sm"></ol>
+    </div>
+    <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
+      <h3 class="text-base font-semibold text-slate-900">사내 공지</h3>
+      <ul class="mt-3 text-sm text-slate-700 space-y-2">
+        <li>• 데이터는 실시간으로 공유됩니다.</li>
+        <li>• 관리자 패널로 점수/로그를 조정할 수 있습니다.</li>
+      </ul>
+    </div>
+    <div id="adminPanel" class="bg-white rounded-2xl shadow p-6 border border-slate-200 hidden">
+      <h3 class="text-base font-semibold text-slate-900">관리자 패널</h3>
+      <button id="resetScoresBtn" class="mt-2 py-1 px-2 bg-red-500 text-white rounded hover:bg-red-600">모든 점수 초기화</button>
+    </div>
+  </aside>
+</div>
+</section>
+</main>
 
-        </div>
-        <aside class="space-y-5">
-          <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
-            <h3 class="text-base font-semibold text-slate-900">이번 달 실적 랭킹</h3>
-            <ol id="leaderboard" class="mt-3 space-y-2 text-sm"></ol>
-          </div>
-          <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
-            <h3 class="text-base font-semibold text-slate-900">사내 공지</h3>
-            <ul class="mt-3 text-sm text-slate-700 space-y-2">
-              <li>• 데이터는 Firebase Realtime Database에 저장됩니다. 실시간 업데이트 가능.</li>
-              <li>• 운영자는 관리자 패널에서 초기 포인트를 조정 가능.</li>
-              <li>• 본 시스템은 역할극용이며 금전과 무관합니다.</li>
-            </ul>
-          </div>
-        </aside>
-      </div>
-    </section>
-  </main>
+<footer class="max-w-6xl mx-auto px-4 pb-10 text-center text-xs text-slate-500">
+© Intranet Simulation for RP — For friends only
+</footer>
 
-  <footer class="max-w-6xl mx-auto px-4 pb-10 text-center text-xs text-slate-500">
-    © Intranet Simulation for RP — For friends only
-  </footer>
+<script>
+// ===== Firebase 초기화 =====
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_DOMAIN.firebaseapp.com",
+  databaseURL: "https://YOUR_DOMAIN.firebaseio.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_DOMAIN.appspot.com",
+  messagingSenderId: "SENDER_ID",
+  appId: "APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  <script>
-    // ===== Firebase 설정 =====
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT_ID.appspot.com",
-      messagingSenderId: "SENDER_ID",
-      appId: "APP_ID"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+// ===== 상태 =====
+let current = null;
 
-    // ===== 유틸 =====
-    const fmt = (n)=> new Intl.NumberFormat('ko-KR').format(n);
-    const now = ()=> Date.now();
-    const oneHour = 60*60*1000;
-    const oneDay = 24*oneHour;
+// ===== 유틸 =====
+const fmt = n => new Intl.NumberFormat('ko-KR').format(n);
+const now = () => Date.now();
 
-    // ===== 상태 =====
-    let current = null;
+// ===== UI 요소 =====
+const loginSection = document.getElementById('loginSection');
+const dashboard = document.getElementById('dashboard');
+const headerUser = document.getElementById('headerUser');
+const logoutBtn = document.getElementById('logoutBtn');
 
-    // ===== UI 요소 =====
-    const loginSection = document.getElementById('loginSection');
-    const dashboard = document.getElementById('dashboard');
-    const headerUser = document.getElementById('headerUser');
-    const logoutBtn = document.getElementById('logoutBtn');
+const nameInput = document.getElementById('nameInput');
+const idInput = document.getElementById('idInput');
+const loginBtn = document.getElementById('loginBtn');
 
-    const nameInput = document.getElementById('nameInput');
-    const idInput = document.getElementById('idInput');
-    const loginBtn = document.getElementById('loginBtn');
+const pointsEl = document.getElementById('points');
+const winsEl = document.getElementById('wins');
+const betsEl = document.getElementById('bets');
+const logList = document.getElementById('logList');
+const leaderboard = document.getElementById('leaderboard');
+const actionResult = document.getElementById('actionResult');
+const adminPanel = document.getElementById('adminPanel');
+const resetScoresBtn = document.getElementById('resetScoresBtn');
 
-    const pointsEl = document.getElementById('points');
-    const winsEl = document.getElementById('wins');
-    const betsEl = document.getElementById('bets');
-    const logList = document.getElementById('logList');
-    const leaderboardEl = document.getElementById('leaderboard');
+const reportBtn = document.getElementById('reportBtn');
+const investBtn = document.getElementById('investBtn');
+const eventBtn = document.getElementById('eventBtn');
 
-    // ===== Firebase 실시간 연동 =====
-    function setUserData(user){
-      db.ref('users/' + user.id).set(user);
-    }
+// ===== 로그인 =====
+loginBtn.onclick = () => {
+  const name = nameInput.value.trim();
+  const id = idInput.value.trim();
+  if(!name || !id) return alert('이름과 사원번호를 입력해주세요.');
+  current = { name, id, points:0, wins:0, bets:0 };
+  headerUser.textContent = `${name} (${id})`;
+  loginSection.classList.add('hidden');
+  dashboard.classList.remove('hidden');
+  logoutBtn.classList.remove('hidden');
+  if(id === 'ADMIN') adminPanel.classList.remove('hidden');
+  db.ref('users/'+id).set(current);
+  attachRealtime();
+};
 
-    function loadUserData(id, callback){
-      db.ref('users/' + id).on('value', snapshot => {
-        callback(snapshot.val());
-      });
-    }
+// ===== 로그아웃 =====
+logoutBtn.onclick = () => location.reload();
 
-    function loadLeaderboard(callback){
-      db.ref('users').on('value', snapshot => {
-        callback(snapshot.val());
-      });
-    }
+// ===== 실시간 반영 =====
+function attachRealtime(){
+  db.ref('users').on('value', snapshot=>{
+    const users = snapshot.val() || {};
+    // 개인 실적
+    const me = users[current.id] || {};
+    pointsEl.textContent = fmt(me.points||0);
+    winsEl.textContent = fmt(me.wins||0);
+    betsEl.textContent = fmt(me.bets||0);
 
-    // ===== 로그인/로그아웃 =====
-    loginBtn.addEventListener('click', ()=>{
-      const name = (nameInput.value||'').trim();
-      const id = (idInput.value||'').trim();
-      if(!name||!id) return alert('사원명과 사원번호를 모두 입력하세요.');
-
-      current = { name, id, points: 100, wins:0, bets:0, logs:[], lastEventAt:0, lastReportAt:0 };
-      setUserData(current);
-      ensureUser();
+    // 로그
+    const logs = Object.values(users).flatMap(u=>u.logs||[]);
+    logList.innerHTML = '';
+    logs.sort((a,b)=>b.time-a.time).forEach(l=>{
+      const li = document.createElement('li');
+      li.textContent = `[${new Date(l.time).toLocaleTimeString()}] ${l.text}`;
+      logList.appendChild(li);
     });
 
-    logoutBtn.addEventListener('click', ()=>{
-      current = null;
-      dashboard.classList.add('hidden');
-      loginSection.classList.remove('hidden');
-      headerUser.textContent = '미로그인';
+    // 랭킹
+    const ranked = Object.values(users).sort((a,b)=>b.points-(a.points||0));
+    leaderboard.innerHTML = '';
+    ranked.slice(0,10).forEach(u=>{
+      const li = document.createElement('li');
+      li.textContent = `${u.name} - ${u.points||0}pt`;
+      leaderboard.appendChild(li);
     });
+  });
+}
 
-    function ensureUser(){
-      if(!current) return;
-      loginSection.classList.add('hidden');
-      dashboard.classList.remove('hidden');
-      headerUser.textContent = `${current.name} · ${current.id}`;
+// ===== 액션 =====
+function addLog(text){
+  db.ref('users/'+current.id+'/logs').push({text,time:now()});
+}
 
-      loadUserData(current.id, (data)=>{
-        current = data;
-        render();
-      });
+reportBtn.onclick = ()=>{
+  current.points += 10;
+  current.wins += 1;
+  db.ref('users/'+current.id).update({points:current.points,wins:current.wins});
+  addLog('업무 보고 완료 +10pt');
+  actionResult.textContent='업무 보고 완료! +10pt';
+};
+investBtn.onclick = ()=>{
+  const gain = Math.floor(Math.random()*20-5);
+  current.points += gain;
+  current.bets += 1;
+  db.ref('users/'+current.id).update({points:current.points,bets:current.bets});
+  addLog(`리스크 투자 ${gain>=0?'+':'-'}${Math.abs(gain)}pt`);
+  actionResult.textContent=`리스크 투자 결과: ${gain>=0?'+':'-'}${Math.abs(gain)}pt`;
+};
+eventBtn.onclick = ()=>{
+  const gain = Math.floor(Math.random()*50-25);
+  current.points += gain;
+  db.ref('users/'+current.id).update({points:current.points});
+  addLog(`랜덤 이벤트 ${gain>=0?'+':'-'}${Math.abs(gain)}pt`);
+  actionResult.textContent=`랜덤 이벤트 결과: ${gain>=0?'+':'-'}${Math.abs(gain)}pt`;
+};
 
-      loadLeaderboard((users)=>{
-        renderLeaderboard(users);
-      });
-    }
-
-    // ===== 렌더 =====
-    function render(){
-      pointsEl.textContent = fmt(current.points);
-      winsEl.textContent = fmt(current.wins);
-      betsEl.textContent = fmt(current.bets);
-      renderLogs();
-    }
-
-    function renderLogs(){
-      logList.innerHTML = '';
-      (current.logs||[]).slice(-50).reverse().forEach(entry=>{
-        const li = document.createElement('li');
-        li.innerHTML = `<span class="text-slate-500">${new Date(entry.t).toLocaleString()}</span> — ${entry.msg}`;
-        logList.appendChild(li);
-      });
-    }
-
-    function addLog(msg){
-      current.logs.push({ t: now(), msg });
-      if(current.logs.length>200) current.logs = current.logs.slice(-200);
-      setUserData(current);
-      renderLogs();
-    }
-
-    function renderLeaderboard(users){
-      const arr = Object.values(users||{});
-      arr.sort((a,b)=> b.points - a.points);
-      leaderboardEl.innerHTML = '';
-      arr.slice(0,10).forEach((u,i)=>{
-        const li = document.createElement('li');
-        const me = (u.id===current.id)? 'bg-slate-100 ring-1 ring-slate-200':'';
-        li.className = `rounded-lg px-3 py-2 border border-slate-200 ${me}`;
-        li.innerHTML = `<div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <span class="w-6 text-center text-xs font-bold text-slate-500">${i+1}</span>
-            <div class="text-slate-800 font-medium">${u.name} <span class="text-slate-400 text-xs">(${u.id})</span></div>
-          </div>
-          <div class="text-slate-900 font-semibold">${fmt(u.points)} pt</div>
-        </div>`;
-        leaderboardEl.appendChild(li);
-      });
-    }
-
-  </script>
+// ===== 관리자 =====
+resetScoresBtn.onclick = ()=>{
+  if(!confirm('모든 점수를 초기화하시겠습니까?')) return;
+  db.ref('users').once('value').then(snapshot=>{
+    const users = snapshot.val()||{};
+    Object.keys(users).forEach(uid=>{
+      db.ref('users/'+uid).update({points:0,wins:0,bets:0,logs:[]});
+    });
+  });
+};
+</script>
 </body>
 </html>
