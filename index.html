@@ -4,9 +4,26 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Intranet • 실적 관리 콘솔</title>
-  <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_mkzYLfswDlHPgu1Z3Gk3Gas1itZ4q",
+      authDomain: "sornlzj-2.firebaseapp.com",
+      projectId: "sornlzj-2",
+      storageBucket: "sornlzj-2.appspot.com",
+      messagingSenderId: "282242113719",
+      appId: "1:282242113719:web:474978df92b569eae66d32"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.firebaseApp = { app, db }; // 글로벌에 저장
+  </script>
   <style>
     html { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif; }
     .spin { animation: spin 1s cubic-bezier(.25,.8,.25,1) 1; }
@@ -48,7 +65,7 @@
           </label>
           <button id="loginBtn" class="w-full mt-2 py-2 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800">접속</button>
         </div>
-        <p class="text-xs text-slate-400 mt-4">최초 접속 시 자동 등록되며, 데이터는 Firebase Realtime Database에 저장됩니다.</p>
+        <p class="text-xs text-slate-400 mt-4">최초 접속 시 자동 등록되며, 데이터는 로컬 저장소(LocalStorage)와 Firebase에 동기화됩니다.</p>
       </div>
     </section>
 
@@ -81,7 +98,7 @@
             </div>
           </div>
 
-          <!-- 업무 보고 -->
+          <!-- 업무 보고(룰렛) -->
           <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
             <div class="flex items-center justify-between mb-4">
               <div>
@@ -118,7 +135,7 @@
             <div id="reportResult" class="mt-4 text-sm"></div>
           </div>
 
-          <!-- 프로젝트 투자 -->
+          <!-- 프로젝트 투자(배팅) -->
           <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
             <h3 class="text-base font-semibold text-slate-900">프로젝트 투자</h3>
             <p class="text-sm text-slate-500 mb-3">보유 포인트에서 일부를 배정해 결과에 따라 수익 또는 손실을 기록합니다.</p>
@@ -129,200 +146,191 @@
                 <input id="betInput" type="number" min="1" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30" placeholder="예: 20" />
               </label>
               <label class="block">
-                <span class="text-xs text-slate-600">리스크 등급</span>
-                <select id="riskInput" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30">
-                  <option value="low">낮음</option>
-                  <option value="medium">보통</option>
-                  <option value="high">높음</option>
-                </select>
+                <span class="text-xs text-slate-600">성공 확률 %</span>
+                <input id="betChance" type="number" min="1" max="100" class="mt-1 w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30" placeholder="예: 60" />
               </label>
-              <button id="betBtn" class="py-3 mt-6 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-500">투자 실행</button>
+              <button id="betBtn" class="mt-5 py-2 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800">투자 실행</button>
             </div>
-            <div id="betResult" class="mt-3 text-sm text-slate-700"></div>
+            <div id="betResult" class="mt-3 text-sm"></div>
           </div>
         </div>
 
-        <!-- 오른쪽: 관리자 패널 & 로그 -->
+        <!-- 오른쪽: 관리자 패널 -->
         <div class="space-y-5">
-          <div id="adminPanel" class="hidden bg-white rounded-2xl shadow p-6 border border-slate-200">
-            <h3 class="text-base font-semibold text-slate-900 mb-3">관리자 패널</h3>
-            <div class="text-sm text-slate-500 mb-3">관리자만 접근 가능</div>
-            <div id="userList" class="space-y-2 max-h-60 overflow-y-auto text-xs text-slate-700"></div>
-          </div>
           <div class="bg-white rounded-2xl shadow p-6 border border-slate-200">
-            <h3 class="text-base font-semibold text-slate-900 mb-3">최근 활동 로그</h3>
-            <div id="logList" class="space-y-1 max-h-60 overflow-y-auto text-xs text-slate-700"></div>
+            <h3 class="text-base font-semibold text-slate-900 mb-3">관리자 패널</h3>
+            <p class="text-sm text-slate-500 mb-3">실시간으로 직원별 데이터 확인 및 수정 가능</p>
+            <div class="space-y-2">
+              <label class="block text-xs text-slate-600">사원 선택</label>
+              <select id="userSelect" class="w-full rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900/30"></select>
+            </div>
+            <div class="mt-3 space-y-2">
+              <button id="refreshBtn" class="w-full py-2 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800">데이터 새로고침</button>
+              <button id="resetBtn" class="w-full py-2 rounded-xl bg-red-600 text-white font-medium hover:bg-red-500">선택 데이터 초기화</button>
+            </div>
           </div>
         </div>
       </div>
     </section>
   </main>
 
-  <!-- Firebase + 기능 스크립트 -->
-  <script>
-    // ===== Firebase 설정 =====
-    const firebaseConfig = {
-      apiKey: "AIzaSyD_mkzYLfswDlHPgu1Z3Gk3Gas1itZK4qE",
-      authDomain: "sornlzj-2.firebaseapp.com",
-      projectId: "sornlzj-2",
-      storageBucket: "sornlzj-2.firebasestorage.app",
-      messagingSenderId: "282242113719",
-      appId: "1:282242113719:web:474978df92b569eae66d32",
-      databaseURL: "https://sornlzj-2-default-rtdb.firebaseio.com/"
+  <script type="module">
+    import { db } from window.firebaseApp;
+    import { doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+    // --- 로컬 상태 ---
+    const state = {
+      currentUser: null,
+      points: 0,
+      wins: 0,
+      bets: 0
     };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
 
-    // ===== 전역 =====
-    let currentUser = null;
-    const reportCooldownSec = 10;
-
-    // ===== 로그인 =====
+    // --- DOM ---
     const loginSection = document.getElementById("loginSection");
     const dashboard = document.getElementById("dashboard");
-    const headerUser = document.getElementById("headerUser");
-    const logoutBtn = document.getElementById("logoutBtn");
     const nameInput = document.getElementById("nameInput");
     const idInput = document.getElementById("idInput");
     const loginBtn = document.getElementById("loginBtn");
+    const headerUser = document.getElementById("headerUser");
+    const logoutBtn = document.getElementById("logoutBtn");
 
-    loginBtn.addEventListener("click", async () => {
-      const name = nameInput.value.trim();
-      const id = idInput.value.trim();
-      if (!name || !id) return alert("사원명과 사원번호를 입력하세요.");
-      const userRef = db.ref("users/" + id);
-      const snapshot = await userRef.get();
-      if (!snapshot.exists()) {
-        await userRef.set({ name, points: 0, wins: 0, bets: 0, admin: false, lastReport: 0 });
-      }
-      currentUser = { id, ...(snapshot.val() || { name, points:0, wins:0, bets:0, admin:false, lastReport:0 }) };
-      loginSection.classList.add("hidden");
-      dashboard.classList.remove("hidden");
-      headerUser.textContent = currentUser.name;
-      logoutBtn.classList.remove("hidden");
-      if (currentUser.admin) document.getElementById("adminPanel").classList.remove("hidden");
-      refreshDashboard();
-      startRealtimeListeners();
-    });
-
-    logoutBtn.addEventListener("click", () => {
-      currentUser = null;
-      loginSection.classList.remove("hidden");
-      dashboard.classList.add("hidden");
-      logoutBtn.classList.add("hidden");
-    });
-
-    // ===== 리얼타임 대시보드 =====
     const pointsEl = document.getElementById("points");
     const winsEl = document.getElementById("wins");
     const betsEl = document.getElementById("bets");
-    const logList = document.getElementById("logList");
-    const userList = document.getElementById("userList");
 
-    function refreshDashboard() {
-      if (!currentUser) return;
-      pointsEl.textContent = currentUser.points;
-      winsEl.textContent = currentUser.wins;
-      betsEl.textContent = currentUser.bets;
-    }
-
-    function startRealtimeListeners() {
-      db.ref("users").on("value", snapshot => {
-        if (!snapshot.exists()) return;
-        const users = snapshot.val();
-        if (currentUser.admin) {
-          userList.innerHTML = Object.entries(users).map(([id, u]) => `<div>${u.name} (${id}): ${u.points}pt</div>`).join("");
-        }
-        if (currentUser) {
-          const me = users[currentUser.id];
-          if (me) {
-            currentUser = { id: currentUser.id, ...me };
-            refreshDashboard();
-          }
-        }
-      });
-
-      db.ref("logs").limitToLast(50).on("child_added", snapshot => {
-        const log = snapshot.val();
-        const el = document.createElement("div");
-        el.textContent = `[${new Date(log.time).toLocaleTimeString()}] ${log.msg}`;
-        logList.prepend(el);
-      });
-    }
-
-    function addLog(msg) {
-      db.ref("logs").push({ msg, time: Date.now() });
-    }
-
-    // ===== 업무 보고 =====
     const reportBtn = document.getElementById("reportBtn");
-    const wheelEl = document.getElementById("wheel");
     const reportResult = document.getElementById("reportResult");
-    const reportCooldownEl = document.getElementById("reportCooldown");
+    const wheel = document.getElementById("wheel");
 
-    async function canReport() {
-      const now = Date.now();
-      return now - (currentUser.lastReport || 0) > reportCooldownSec * 1000;
-    }
-
-    async function submitReport() {
-      if (!await canReport()) return alert("아직 쿨타임이 남았습니다.");
-      const outcomes = [
-        { text: "프로젝트 대성공 +150pt", pts: 150 },
-        { text: "상사 칭찬 +80pt", pts: 80 },
-        { text: "성과 인정 +50pt", pts: 50 },
-        { text: "무난한 보고 0pt", pts: 0 },
-        { text: "보고 누락 -30pt", pts: -30 },
-        { text: "정치 전개 실패 -60pt", pts: -60 },
-        { text: "성과 갈취 -100pt", pts: -100 }
-      ];
-      const rnd = Math.random();
-      let cumulative = 0, result = outcomes[0];
-      const probs = [0.05,0.10,0.15,0.20,0.20,0.20,0.10];
-      for (let i = 0; i < probs.length; i++) {
-        cumulative += probs[i];
-        if (rnd <= cumulative) { result = outcomes[i]; break; }
-      }
-      wheelEl.classList.add("spin");
-      setTimeout(() => wheelEl.classList.remove("spin"), 1000);
-      currentUser.points += result.pts;
-      currentUser.wins += result.pts > 0 ? 1 : 0;
-      currentUser.lastReport = Date.now();
-      await db.ref("users/" + currentUser.id).update({ points: currentUser.points, wins: currentUser.wins, lastReport: currentUser.lastReport });
-      reportResult.textContent = result.text;
-      addLog(`${currentUser.name} 업무 보고: ${result.text}`);
-      updateCooldown();
-    }
-
-    function updateCooldown() {
-      const remaining = Math.max(0, reportCooldownSec - Math.floor((Date.now() - currentUser.lastReport)/1000));
-      if (remaining > 0) {
-        reportCooldownEl.textContent = `쿨타임 ${remaining}s`;
-        setTimeout(updateCooldown, 1000);
-      } else reportCooldownEl.textContent = '';
-    }
-
-    reportBtn.addEventListener("click", submitReport);
-
-    // ===== 프로젝트 투자 =====
     const betInput = document.getElementById("betInput");
-    const riskInput = document.getElementById("riskInput");
+    const betChance = document.getElementById("betChance");
     const betBtn = document.getElementById("betBtn");
     const betResult = document.getElementById("betResult");
 
+    const userSelect = document.getElementById("userSelect");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    // --- 로그인/로그아웃 ---
+    loginBtn.addEventListener("click", async () => {
+      const name = nameInput.value.trim();
+      const id = idInput.value.trim();
+      if (!name || !id) return alert("사원명과 사원번호를 입력해주세요.");
+
+      state.currentUser = { name, id };
+      headerUser.textContent = `${name} (${id})`;
+      logoutBtn.classList.remove("hidden");
+      loginSection.classList.add("hidden");
+      dashboard.classList.remove("hidden");
+
+      // Firestore에서 데이터 가져오기
+      const userRef = doc(db, "users", id);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        state.points = data.points || 0;
+        state.wins = data.wins || 0;
+        state.bets = data.bets || 0;
+      } else {
+        await setDoc(userRef, { name, points: 0, wins: 0, bets: 0 });
+        state.points = 0;
+        state.wins = 0;
+        state.bets = 0;
+      }
+      renderDashboard();
+
+      // 실시간 업데이트 구독
+      onSnapshot(userRef, (docSnap) => {
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+        state.points = data.points;
+        state.wins = data.wins;
+        state.bets = data.bets;
+        renderDashboard();
+      });
+
+      // 관리자 패널 사용자 목록 업데이트
+      updateUserSelect();
+    });
+
+    logoutBtn.addEventListener("click", () => {
+      state.currentUser = null;
+      loginSection.classList.remove("hidden");
+      dashboard.classList.add("hidden");
+      logoutBtn.classList.add("hidden");
+      headerUser.textContent = "미로그인";
+    });
+
+    function renderDashboard() {
+      pointsEl.textContent = state.points;
+      winsEl.textContent = state.wins;
+      betsEl.textContent = state.bets;
+    }
+
+    // --- 업무 보고(룰렛) ---
+    reportBtn.addEventListener("click", async () => {
+      if (!state.currentUser) return;
+      const outcomes = [
+        { text: "프로젝트 대성공", points: 150 },
+        { text: "상사 칭찬", points: 80 },
+        { text: "성과 인정", points: 50 },
+        { text: "무난한 보고", points: 0 },
+        { text: "보고 누락", points: -30 },
+        { text: "정치 전개 실패", points: -60 },
+        { text: "성과 갈취", points: -100 }
+      ];
+      const choice = outcomes[Math.floor(Math.random()*outcomes.length)];
+      reportResult.textContent = `결과: ${choice.text} (${choice.points}pt)`;
+      state.points += choice.points;
+      renderDashboard();
+
+      const userRef = doc(db, "users", state.currentUser.id);
+      await setDoc(userRef, { ...state.currentUser, points: state.points, wins: state.wins, bets: state.bets });
+    });
+
+    // --- 투자 ---
     betBtn.addEventListener("click", async () => {
-      const amount = parseInt(betInput.value);
-      const risk = riskInput.value;
-      if (!amount || amount <= 0 || amount > currentUser.points) return alert("올바른 배팅 포인트를 입력하세요.");
-      const multiplier = risk === "low" ? 1.1 : risk === "medium" ? 1.5 : 2.5;
-      const win = Math.random() < (risk === "low" ? 0.8 : risk === "medium" ? 0.5 : 0.25);
-      const delta = Math.floor(amount * (win ? multiplier : -1));
-      currentUser.points += delta;
-      currentUser.bets += 1;
-      await db.ref("users/" + currentUser.id).update({ points: currentUser.points, bets: currentUser.bets });
-      betResult.textContent = `${win ? "성공" : "실패"}: ${delta>0?"+":""}${delta}pt`;
-      addLog(`${currentUser.name} 투자 (${risk}) ${win?"성공":"실패"}: ${delta>0?"+":""}${delta}pt`);
-      refreshDashboard();
+      if (!state.currentUser) return;
+      const points = parseInt(betInput.value);
+      const chance = parseInt(betChance.value);
+      if (!points || !chance) return alert("포인트와 확률을 입력해주세요.");
+      if (points > state.points) return alert("보유 포인트보다 많습니다.");
+
+      const success = Math.random()*100 < chance;
+      const delta = success ? Math.round(points*1.5) : -points;
+      state.points += delta;
+      state.bets += delta;
+      betResult.textContent = `투자 결과: ${success ? "성공" : "실패"} (${delta}pt)`;
+      renderDashboard();
+
+      const userRef = doc(db, "users", state.currentUser.id);
+      await setDoc(userRef, { ...state.currentUser, points: state.points, wins: state.wins, bets: state.bets });
+    });
+
+    // --- 관리자 패널 ---
+    async function updateUserSelect() {
+      userSelect.innerHTML = "";
+      const snapshot = await db.collection("users")?.get?.();
+      if (!snapshot?.docs) return;
+      snapshot.docs.forEach(docSnap => {
+        const opt = document.createElement("option");
+        opt.value = docSnap.id;
+        opt.textContent = docSnap.data().name;
+        userSelect.appendChild(opt);
+      });
+    }
+
+    refreshBtn.addEventListener("click", () => {
+      updateUserSelect();
+    });
+
+    resetBtn.addEventListener("click", async () => {
+      const uid = userSelect.value;
+      if (!uid) return;
+      if (!confirm("선택한 사용자의 데이터를 초기화하시겠습니까?")) return;
+      const userRef = doc(db, "users", uid);
+      await setDoc(userRef, { name: userSelect.options[userSelect.selectedIndex].text, points:0, wins:0, bets:0 });
     });
   </script>
 </body>
